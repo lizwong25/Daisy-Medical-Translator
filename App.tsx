@@ -4,34 +4,63 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import DaisyButton from "./DaisyButton"
 import LanguageSelector from "./LanguageSelector"
+import TranscriptionView from "./components/TranscriptionView"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
-import { Menu, MessageSquare, History, Settings } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Menu, MessageSquare, History, Settings, AlertCircle } from "lucide-react"
+import { useAudioRecording } from "./hooks/useAudioRecording"
+
+type AppView = "recording" | "transcription"
 
 export default function App() {
-  const [isTranslating, setIsTranslating] = useState(false)
-  const [hasStoppedOnce, setHasStoppedOnce] = useState(false)
+  const [currentView, setCurrentView] = useState<AppView>("recording")
   const [inputLanguage, setInputLanguage] = useState("en")
   const [outputLanguage, setOutputLanguage] = useState("es")
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+
+  const {
+    isRecording,
+    audioBlob,
+    startRecording,
+    stopRecording,
+    clearRecording,
+    error: recordingError,
+  } = useAudioRecording()
+
   const router = useRouter()
 
-  const handleToggleTranslation = () => {
-    if (isTranslating) {
-      // User is stopping translation
-      setHasStoppedOnce(true)
+  const handleToggleTranslation = async () => {
+    if (isRecording) {
+      // User is stopping recording
+      console.log("User clicked stop button, stopping recording...")
+      stopRecording()
+
+      // Switch to transcription view after a short delay to ensure recording is stopped
+      setTimeout(() => {
+        console.log("Switching to transcription view...")
+        setCurrentView("transcription")
+      }, 500)
+    } else {
+      // User is starting recording
+      console.log("User clicked start button, starting recording...")
+      clearRecording() // Clear any previous recording
+      await startRecording()
     }
-    setIsTranslating(!isTranslating)
   }
 
-  const handleEndConversation = () => {
-    router.push("/summary")
+  const handleStartNew = () => {
+    clearRecording()
+    setCurrentView("recording")
+  }
+
+  const handleGoBack = () => {
+    setCurrentView("recording")
   }
 
   const handleNewConversation = () => {
-    // Reset the current conversation state
-    setIsTranslating(false)
-    setHasStoppedOnce(false)
+    clearRecording()
+    setCurrentView("recording")
     setInputLanguage("en")
     setOutputLanguage("es")
     setIsMenuOpen(false)
@@ -48,6 +77,20 @@ export default function App() {
     router.push("/settings")
   }
 
+  // Show transcription view
+  if (currentView === "transcription") {
+    return (
+      <TranscriptionView
+        audioBlob={audioBlob}
+        inputLanguage={inputLanguage}
+        outputLanguage={outputLanguage}
+        onStartNew={handleStartNew}
+        onGoBack={handleGoBack}
+      />
+    )
+  }
+
+  // Show recording view (main app)
   return (
     <div className="min-h-screen flex flex-col" style={{ backgroundColor: "#e2eff4" }}>
       {/* Header */}
@@ -146,6 +189,16 @@ export default function App() {
       {/* Main Content */}
       <main className="flex-1 flex items-start justify-center px-4 sm:px-6 -mt-4">
         <div className="max-w-4xl w-full">
+          {/* Error Alert */}
+          {recordingError && (
+            <div className="mb-6">
+              <Alert className="bg-red-50 border-red-200">
+                <AlertCircle className="h-4 w-4 text-red-600" />
+                <AlertDescription className="text-red-800">{recordingError}</AlertDescription>
+              </Alert>
+            </div>
+          )}
+
           {/* Mobile Layout - Vertical Stack */}
           <div className="lg:hidden">
             {/* Language Selectors Row */}
@@ -156,25 +209,14 @@ export default function App() {
 
             {/* Central Daisy Button */}
             <div className="flex flex-col items-center space-y-4">
-              <DaisyButton isActive={isTranslating} onToggle={handleToggleTranslation} />
+              <DaisyButton isActive={isRecording} onToggle={handleToggleTranslation} />
 
               {/* Status Text */}
-              {isTranslating && (
+              {isRecording && (
                 <div className="flex items-center space-x-2 text-green-600">
                   <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                  <span className="text-sm font-medium">Listening...</span>
+                  <span className="text-sm font-medium">Recording...</span>
                 </div>
-              )}
-
-              {/* End Conversation Button */}
-              {hasStoppedOnce && (
-                <Button
-                  onClick={handleEndConversation}
-                  variant="outline"
-                  className="mt-4 bg-white/80 backdrop-blur-sm border-slate-300 hover:bg-white/90 text-slate-700 hover:text-slate-800"
-                >
-                  End Conversation
-                </Button>
               )}
             </div>
           </div>
@@ -188,25 +230,14 @@ export default function App() {
 
             {/* Central Daisy Button */}
             <div className="flex flex-col items-center space-y-4">
-              <DaisyButton isActive={isTranslating} onToggle={handleToggleTranslation} />
+              <DaisyButton isActive={isRecording} onToggle={handleToggleTranslation} />
 
               {/* Status Text */}
-              {isTranslating && (
+              {isRecording && (
                 <div className="flex items-center space-x-2 text-green-600">
                   <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                  <span className="text-sm font-medium">Listening...</span>
+                  <span className="text-sm font-medium">Recording...</span>
                 </div>
-              )}
-
-              {/* End Conversation Button */}
-              {hasStoppedOnce && (
-                <Button
-                  onClick={handleEndConversation}
-                  variant="outline"
-                  className="mt-4 bg-white/80 backdrop-blur-sm border-slate-300 hover:bg-white/90 text-slate-700 hover:text-slate-800"
-                >
-                  End Conversation
-                </Button>
               )}
             </div>
 
@@ -219,9 +250,9 @@ export default function App() {
           {/* Instructions */}
           <div className="mt-8 sm:mt-12 text-center max-w-sm sm:max-w-md mx-auto px-4">
             <p className="text-sm sm:text-base text-slate-600 leading-relaxed">
-              {isTranslating
-                ? "Speak clearly into your microphone. Translation will begin automatically."
-                : "Press the daisy button to start real-time medical translation."}
+              {isRecording
+                ? "Speak clearly into your microphone. Press stop when finished to get your transcription."
+                : "Press the daisy button to start recording your voice for transcription."}
             </p>
           </div>
         </div>

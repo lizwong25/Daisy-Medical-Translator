@@ -6,9 +6,14 @@ interface DaisyButtonProps {
 }
 
 export default function DaisyButton({ isActive, onToggle }: DaisyButtonProps) {
+  const handleClick = () => {
+    console.log("Daisy button clicked, isActive:", isActive)
+    onToggle()
+  }
+
   return (
     <button
-      onClick={onToggle}
+      onClick={handleClick}
       className="relative w-56 h-56 sm:w-64 sm:h-64 lg:w-72 lg:h-72 rounded-full p-0 border-0 bg-transparent hover:bg-transparent focus:bg-transparent transition-all duration-300 hover:scale-105"
       aria-pressed={isActive}
       aria-label={isActive ? "Stop translation" : "Start translation"}
