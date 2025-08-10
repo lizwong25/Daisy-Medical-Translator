@@ -15,7 +15,7 @@ const languages = [
   { code: "zh", name: "Mandarin", flag: "🇨🇳" },
 ]
 
-export function LanguageSelector({ label, value, onChange }: LanguageSelectorProps) {
+export default function LanguageSelector({ label, value, onChange }: LanguageSelectorProps) {
   const selectedLanguage = languages.find((lang) => lang.code === value) || languages[0]
 
   return (
